@@ -1,0 +1,108 @@
+version: "3.7"
+
+services:
+
+  php:
+    container_name: php-scue
+#    image: markoshust/magento-php:8.1-fpm-bookworm
+#    image: php:8.1-fpm
+#    image: 'registry-docker.soft-loft.com/php:8.1'
+    working_dir: /app
+    volumes:
+      - .:/app
+      - ./docker-build/php/8.1/conf/php.ini:/usr/local/etc/php/conf.d/php.ini
+#    command: [run apt-get update && apt-get install -y pdo_mysql libzip-dev libpng-dev libonig-dev libxml2-dev libicu-dev unzip git zip && docker-php-ext-install intl pdo_mysql zip bcmath opcache xsl soap && docker-php-ext-enable && php-fpm ]
+    build:
+      context: .
+#      dockerfile: ./docker-build/php/8.1/Dockerfile
+      dockerfile: ./docker-build/images/php8.1/Dockerfile
+    environment:
+      - CONTAINER_UID=33
+      - APPLICATION_USER=www-data
+      - APPLICATION_GROUP=www-data
+      - APPLICATION_PATH=/app
+      - APPLICATION_UID=100
+      - APPLICATION_GID=33
+      - PHP_SENDMAIL_PATH="/usr/local/bin/mhsendmail --smtp-addr=mailhog:1025"
+      - PHP_MEMORY_LIMIT=2048M
+      - PHP_MAX_EXECUTION_TIME=600
+      - PHP_POST_MAX_SIZE=500M
+      - PHP_UPLOAD_MAX_FILESIZE=500M
+      - PHP_OPCACHE_MEMORY_CONSUMPTION=512
+      - FPM_MAX_REQUESTS=500
+    depends_on:
+      - elasticsearch
+      - redis
+      - rabbitmq
+      - traefik
+
+  redis:
+    container_name: redis-scue
+    image: redis:alpine
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+
+  rabbitmq:
+    container_name: rabbitmq-scue
+    image: bitnami/rabbitmq:latest
+    environment:
+      - RABBITMQ_USERNAME=scue
+      - RABBITMQ_PASSWORD=ohM6uePh7tuF
+
+  elasticsearch:
+    container_name: elasticsearch-scue
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.3.0
+#    image: registry-docker.soft-loft.com/elasticsearch:7.3.0
+#    image: docker.elastic.co/elasticsearch/elasticsearch:7.10.0
+#    user: elasticsearch
+#    environment:
+#      - node.name=es01
+#      - cluster.name=es-docker-cluster
+#      - discovery.type=single-node
+    hostname: elasticsearch
+    environment:
+      discovery.type: single-node
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+#      - node.name=es01
+#      - cluster.name=es-docker-cluster
+#      - bootstrap.memory_lock=true
+#      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+#    volumes:
+#       - .:/usr/share/elasticsearch/data
+#      - es01:/usr/share/elasticsearch/data
+#      - ./elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+
+  nginx:
+    container_name: nginx-scue
+    image: nginx:latest
+#    image: docker.pp.ua/magento2-nginx:latest
+    environment:
+      - VIRTUAL_HOST=scue.dev
+    volumes:
+      - ./docker-build/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - .:/app
+    depends_on:
+      - php
+    ports:
+      - '8000:80'
+
+  traefik:
+    image: traefik:v2.0
+    container_name: traefik-scue
+    command: --api.insecure=true --providers.docker
+    ports:
+      - '8008:80'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+#networks:
+#  default:
+#    external: true
+#    name: MyNet

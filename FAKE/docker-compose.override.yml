@@ -1,0 +1,29 @@
+version: "3.7"
+services:
+  php:
+#    volumes:
+#      - ./build/magento/env.php:/app/app/etc/env.php
+#      - ./xdebug.ini:/usr/local/etc/php/conf.d/99-docker.ini
+    depends_on:
+      - mysql
+    environment:
+      - CONTAINER_UID=1000
+      - APPLICATION_UID=1000
+      - APPLICATION_GID=1000
+
+  mysql:
+    container_name: mysql-scue
+    image: mariadb:10.6
+    volumes:
+      - ./docker-build/mysql/lib:/var/lib/mysql
+#      - ${PWD}/.data/mysql-init:/docker-entrypoint-initdb.d
+    environment:
+      MYSQL_ROOT: root
+      MYSQL_ROOT_PASSWORD: sdf#@SD232
+      MYSQL_DATABASE: scue_master
+#      MYSQL_DATABASE: scue_new
+#      MYSQL_DATABASE: null_db
+      MYSQL_USER: scue
+      MYSQL_PASSWORD: scue
+    ports:
+      - "33077:3306"
